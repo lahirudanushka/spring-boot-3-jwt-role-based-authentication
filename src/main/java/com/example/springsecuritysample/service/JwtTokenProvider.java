@@ -29,7 +29,7 @@ public class JwtTokenProvider {
     private UserRepository userRepository;
 
     @Value("${jwt-secret}")
-    private String secretKey = "your-secret-key";
+    private String secretKey ;
 
     @Value("${jwt-exp-time-in-ms}")
     private long exp;
