@@ -8,6 +8,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Header;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -66,6 +67,7 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         return new Date().before(extractExpiration(token));
     }
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -77,12 +79,34 @@ public class JwtTokenProvider {
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
+
     public Claims extractAllClaims(String token) {
         return Jwts.parser().setSigningKey(secretKey.getBytes()).parseClaimsJws(token).getBody();
     }
 
+    public String refresh(HttpServletRequest httpServletRequest) {
+        String token = tokenExtractor(httpServletRequest);
+        Claims claims = Jwts.parser().setSigningKey(secretKey.getBytes()).parseClaimsJws(token).getBody();
+        claims.setIssuedAt(new Date(System.currentTimeMillis()));
+        claims.setExpiration(new Date(System.currentTimeMillis() + exp));
+        return Jwts.builder()
+                .setClaims(claims)
+                .signWith(SignatureAlgorithm.HS256, secretKey.getBytes())
+                .compact();
+    }
+
+    public String tokenExtractor(HttpServletRequest httpServletRequest) {
+        String jwtToken = "";
+        final String authorizationHeader = httpServletRequest.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer")) {
+            jwtToken = authorizationHeader.substring(7);
+        }
+        return jwtToken;
+
+    }
 }
